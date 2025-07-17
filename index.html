@@ -2,21 +2,100 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Underground Radio</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" type="image/png" href="https://fast.citrus3.com:2020/covers//68769f08e778b.jpg" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background-color: #0f0f0f;
+      color: #e0e0e0;
+      font-family: 'Orbitron', sans-serif;
+      text-align: center;
+      padding: 40px;
+    }
+    h1 {
+      color: #00ff66;
+      font-size: 3rem;
+      margin-bottom: 10px;
+      letter-spacing: 2px;
+    }
+    .player {
+      margin-top: 20px;
+      background: #1a1a1a;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0, 255, 102, 0.5);
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    audio {
+      width: 100%;
+      margin-top: 15px;
+    }
+    #nowplaying {
+      font-size: 1.5rem;
+      margin-top: 40px;
+    }
+    #coverart {
+      margin-top: 20px;
+      max-width: 300px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0, 255, 102, 0.5);
+    }
+    .footer {
+      margin-top: 60px;
+      color: #666;
+      font-size: 0.9rem;
+    }
+    .volume-container {
+      margin-top: 20px;
+    }
+    .volume-container input[type=range] {
+      width: 60%;
+    }
+  </style>
 </head>
 <body>
-  <div class="container">
-    <h1>🎧 AI Underground</h1>
-    <div class="player">
-      <img id="cover" src="https://fast.citrus3.com:2020/covers//68769f08e778b.jpg" alt="Album Art">
-      <audio controls autoplay>
-        <source src="https://fast.citrus3.com:2020/stream/aiunderground" type="audio/aac">
-        Your browser does not support the audio element.
-      </audio>
+  <h1>🎧 AI Underground</h1>
+
+  <div class="player">
+    <img id="coverart" src="" alt="Cover Art" />
+    <div id="nowplaying">Loading song info...</div>
+    <audio id="radioPlayer" controls>
+      <source src="https://fast.citrus3.com:2020/stream/aiunderground" type="audio/mpeg">
+      Your browser does not support the audio element.
+    </audio>
+    <div class="volume-container">
+      <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1">
     </div>
-    <p>Now streaming 24/7 from the underground 🔥</p>
   </div>
+
+  <div class="footer">Powered by Citrus3 & Braden Boehmer • Auto-updating every 30 seconds</div>
+
+  <script>
+    const radioPlayer = document.getElementById('radioPlayer');
+    const volumeSlider = document.getElementById('volumeSlider');
+
+    volumeSlider.addEventListener('input', () => {
+      radioPlayer.volume = volumeSlider.value;
+    });
+
+    async function updateNowPlaying() {
+      try {
+        const res = await fetch("https://fast.citrus3.com:2020/json/stream/aiunderground");
+        const data = await res.json();
+        document.getElementById("nowplaying").innerText = `Now Playing: ${data.nowplaying}`;
+        document.getElementById("coverart").src = data.coverart || "https://via.placeholder.com/300x300?text=No+Cover";
+      } catch (err) {
+        document.getElementById("nowplaying").innerText = "Failed to load song info.";
+        console.error("Error fetching now playing info:", err);
+      }
+    }
+
+    updateNowPlaying();
+    setInterval(updateNowPlaying, 30000);
+  </script>
 </body>
 </html>
