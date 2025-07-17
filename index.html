@@ -185,210 +185,125 @@
 
   <div class="footer">Powered by Citrus3 & Braden Boehmer • Auto-updating every 30 seconds</div>
 
-  <!-- Firebase and App Script -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-analytics.js";
-    import { getFirestore, doc, onSnapshot, setDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+ <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+  import { getFirestore, doc, onSnapshot, setDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
-    // Firebase configuration (public keys and identifiers)
-    const firebaseConfig = {
-      apiKey: "AIzaSyDJBRufT5Wf03k6wyRbZX2LOlibnwu0-EU",
-      authDomain: "ai-underground-ab1f1.firebaseapp.com",
-      projectId: "ai-underground-ab1f1",
-      storageBucket: "ai-underground-ab1f1.appspot.com",
-      messagingSenderId: "87646235894",
-      appId: "1:87646235894:web:62aaccb88b00db5f7050d7",
-      measurementId: "G-J25ZPB98L8"
-    };
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
-    const db = getFirestore(app);
+  const firebaseConfig = {
+    apiKey: "AIzaSyDJBRufT5Wf03k6wyRbZX2LOlibnwu0-EU",
+    authDomain: "ai-underground-ab1f1.firebaseapp.com",
+    projectId: "ai-underground-ab1f1",
+    storageBucket: "ai-underground-ab1f1.appspot.com",
+    messagingSenderId: "87646235894",
+    appId: "1:87646235894:web:62aaccb88b00db5f7050d7",
+    measurementId: "G-J25ZPB98L8"
+  };
 
-    // Get references to DOM elements
-    const coverArtImg = document.getElementById('coverArt');
-    const nowPlayingText = document.getElementById('nowPlayingText');
-    const likeBtn = document.getElementById('likeBtn');
-    const dislikeBtn = document.getElementById('dislikeBtn');
-    const likeCountSpan = document.getElementById('likeCount');
-    const dislikeCountSpan = document.getElementById('dislikeCount');
-    const playPauseBtn = document.getElementById('playPauseBtn');
-    const volumeSlider = document.getElementById('volumeSlider');
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
 
-    // Create audio element (without default controls) for the radio stream
-    const audio = new Audio("https://fast.citrus3.com:2020/stream/aiunderground");
-    audio.preload = 'none';  // preload can be none since it's live stream
+  const coverArtImg = document.getElementById('coverArt');
+  const nowPlayingText = document.getElementById('nowPlayingText');
+  const likeBtn = document.getElementById('likeBtn');
+  const dislikeBtn = document.getElementById('dislikeBtn');
+  const likeCountSpan = document.getElementById('likeCount');
+  const dislikeCountSpan = document.getElementById('dislikeCount');
+  const playPauseBtn = document.getElementById('playPauseBtn');
+  const volumeSlider = document.getElementById('volumeSlider');
+
+  const audio = new Audio("https://fast.citrus3.com:2020/stream/aiunderground");
+  audio.preload = 'none';
+  audio.volume = volumeSlider.value;
+
+  volumeSlider.addEventListener('input', () => {
     audio.volume = volumeSlider.value;
+  });
 
-    // Update slider track background to show volume level (for WebKit browsers)
-    function updateVolumeSliderBg(value) {
-      const percentage = value * 100;
-      // Green to the left, gray to the right
-      volumeSlider.style.background = `linear-gradient(to right, #00ff66 ${percentage}%, #555 ${percentage}%)`;
+  let isPlaying = false;
+  playPauseBtn.addEventListener('click', () => {
+    if (!isPlaying) {
+      audio.play().catch(err => console.error("Audio play error:", err));
+    } else {
+      audio.pause();
     }
-    // Initialize the slider background on page load
-    updateVolumeSliderBg(volumeSlider.value);
+  });
+  audio.addEventListener('play', () => {
+    isPlaying = true;
+    playPauseBtn.textContent = "⏸";
+  });
+  audio.addEventListener('pause', () => {
+    isPlaying = false;
+    playPauseBtn.textContent = "▶️";
+  });
 
-    volumeSlider.addEventListener('input', () => {
-      audio.volume = volumeSlider.value;
-      updateVolumeSliderBg(volumeSlider.value);
+  let currentTrack = "";
+  let unsubscribeVotes = null;
+
+  function setupVoting(trackName) {
+    if (unsubscribeVotes) unsubscribeVotes();
+
+    const voteKey = "vote_" + encodeURIComponent(trackName);
+    let voteState = localStorage.getItem(voteKey) || "none";
+
+    likeBtn.classList.toggle('selected', voteState === "like");
+    dislikeBtn.classList.toggle('selected', voteState === "dislike");
+
+    const trackDoc = doc(db, "votes", trackName);
+    unsubscribeVotes = onSnapshot(trackDoc, (docSnap) => {
+      const data = docSnap.exists() ? docSnap.data() : {};
+      likeCountSpan.textContent = data.likes || 0;
+      dislikeCountSpan.textContent = data.dislikes || 0;
     });
 
-    // Play/Pause button functionality
-    let isPlaying = false;
-    playPauseBtn.addEventListener('click', () => {
-      if (!isPlaying) {
-        audio.play().catch(err => console.error("Audio play error:", err));
+    const updateVote = async (type) => {
+      const other = type === "like" ? "dislike" : "like";
+      const trackRef = doc(db, "votes", trackName);
+
+      // If same button clicked again, undo vote
+      if (voteState === type) {
+        await updateDoc(trackRef, { [type + "s"]: increment(-1) });
+        voteState = "none";
+        localStorage.setItem(voteKey, "none");
       } else {
-        audio.pause();
+        const updates = {
+          [type + "s"]: increment(1)
+        };
+        if (voteState === other) updates[other + "s"] = increment(-1);
+
+        await setDoc(trackRef, updates, { merge: true });
+        voteState = type;
+        localStorage.setItem(voteKey, type);
       }
-      // The state change (play or pause) will be handled in event listeners below
-    });
-    // Sync play/pause button icon with audio state
-    audio.addEventListener('play', () => {
-      isPlaying = true;
-      playPauseBtn.textContent = "⏸";  // pause icon
-    });
-    audio.addEventListener('pause', () => {
-      isPlaying = false;
-      playPauseBtn.textContent = "▶️";  // play icon
-    });
-    // In case the stream stops (ended event), reset state
-    audio.addEventListener('ended', () => {
-      isPlaying = false;
-      playPauseBtn.textContent = "▶️";
-    });
 
-    // Function to fetch now playing info from Citrus3 JSON endpoint
-    let currentTrack = "";  // store current track title to detect changes
-    async function fetchNowPlayingInfo() {
-      try {
-        const res = await fetch("https://fast.citrus3.com:2020/json/stream/aiunderground");
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        const trackString = data.nowplaying || "Unknown Track";
-        const coverUrl = data.coverart || "https://via.placeholder.com/300x300?text=No+Cover";
+      likeBtn.classList.toggle('selected', voteState === "like");
+      dislikeBtn.classList.toggle('selected', voteState === "dislike");
+    };
 
-        if (trackString !== currentTrack) {
-          // Track changed
-          currentTrack = trackString;
-          // Update Now Playing text (with track info)
-          nowPlayingText.innerText = "Now Playing: " + trackString;
-          // Update cover art image (with a fade effect via CSS if already loaded)
-          coverArtImg.style.opacity = '0';
-          coverArtImg.src = coverUrl;
-          // Fade-in new cover art once loaded
-          coverArtImg.onload = () => { coverArtImg.style.opacity = '1'; };
+    likeBtn.onclick = () => updateVote("like");
+    dislikeBtn.onclick = () => updateVote("dislike");
+  }
 
-          // Handle voting system for the new track
-          setupVotingForTrack(currentTrack);
-        }
-      } catch (err) {
-        console.error("Error fetching now playing info:", err);
-        // Do not change the displayed song info on fetch error, just keep trying
+  async function fetchNowPlaying() {
+    try {
+      const res = await fetch("https://fast.citrus3.com:2020/json/stream/aiunderground");
+      const data = await res.json();
+      const track = data.nowplaying || "Unknown Track";
+      const art = data.coverart || "https://via.placeholder.com/300x300?text=No+Cover";
+
+      if (track !== currentTrack) {
+        currentTrack = track;
+        nowPlayingText.textContent = "Now Playing: " + track;
+        coverArtImg.src = art;
+        setupVoting(track);
       }
+    } catch (err) {
+      console.error("Failed to fetch now playing info:", err);
     }
+  }
 
-    // Voting system: subscribe to Firestore doc for current track and handle user votes
-    let unsubscribeVotes = null;  // to keep track of Firestore listener
-    function setupVotingForTrack(trackName) {
-      // Clean up previous listener if any
-      if (unsubscribeVotes) {
-        unsubscribeVotes();
-        unsubscribeVotes = null;
-      }
-      // Reset UI counts to 0 (until data arrives) and enable buttons
-      likeCountSpan.innerText = "0";
-      dislikeCountSpan.innerText = "0";
-      likeBtn.disabled = false;
-      dislikeBtn.disabled = false;
-      likeBtn.classList.remove('selected');
-      dislikeBtn.classList.remove('selected');
-
-      // Check localStorage if this client already voted on this track
-      const voteKey = "vote_" + encodeURIComponent(trackName);
-      const previousVote = localStorage.getItem(voteKey);
-      if (previousVote) {
-        // User has voted before on this track
-        if (previousVote === "like") {
-          likeBtn.classList.add('selected');
-        } else if (previousVote === "dislike") {
-          dislikeBtn.classList.add('selected');
-        }
-        // Disable both buttons (prevent voting again)
-        likeBtn.disabled = true;
-        dislikeBtn.disabled = true;
-      }
-
-      // Reference to Firestore document for this track
-      const trackDocRef = doc(db, "votes", trackName);
-      // Listen for live updates to this track's vote counts
-      unsubscribeVotes = onSnapshot(trackDocRef, (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          const likes = data.likes || 0;
-          const dislikes = data.dislikes || 0;
-          likeCountSpan.innerText = likes;
-          dislikeCountSpan.innerText = dislikes;
-        } else {
-          // No document yet, show 0/0
-          likeCountSpan.innerText = "0";
-          dislikeCountSpan.innerText = "0";
-        }
-      });
-    }
-
-    // Attach event handlers for like and dislike buttons
-    likeBtn.addEventListener('click', async () => {
-      if (!currentTrack) return;
-      const voteKey = "vote_" + encodeURIComponent(currentTrack);
-      if (localStorage.getItem(voteKey)) {
-        return;  // already voted (shouldn't happen as button would be disabled)
-      }
-      try {
-        const trackDocRef = doc(db, "votes", currentTrack);
-        // Attempt to update likes count atomically
-        await updateDoc(trackDocRef, { likes: increment(1), dislikes: increment(0) });
-      } catch (err) {
-        // If update fails (e.g., doc didn't exist), create the doc with initial counts
-        const trackDocRef = doc(db, "votes", currentTrack);
-        await setDoc(trackDocRef, { likes: 1, dislikes: 0 }, { merge: true });
-      }
-      // Record this vote locally and update UI immediately
-      localStorage.setItem(voteKey, "like");
-      likeBtn.classList.add('selected');
-      likeBtn.disabled = true;
-      dislikeBtn.disabled = true;
-    });
-
-    dislikeBtn.addEventListener('click', async () => {
-      if (!currentTrack) return;
-      const voteKey = "vote_" + encodeURIComponent(currentTrack);
-      if (localStorage.getItem(voteKey)) {
-        return;
-      }
-      try {
-        const trackDocRef = doc(db, "votes", currentTrack);
-        await updateDoc(trackDocRef, { dislikes: increment(1), likes: increment(0) });
-      } catch (err) {
-        const trackDocRef = doc(db, "votes", currentTrack);
-        await setDoc(trackDocRef, { likes: 0, dislikes: 1 }, { merge: true });
-      }
-      localStorage.setItem(voteKey, "dislike");
-      dislikeBtn.classList.add('selected');
-      likeBtn.disabled = true;
-      dislikeBtn.disabled = true;
-    });
-
-    // Initial load: fetch current song and setup voting, then schedule periodic updates
-    fetchNowPlayingInfo().then(() => {
-      // Start playing automatically if user has interacted (some browsers require a user gesture to start audio)
-      // The play button is provided for manual start if needed.
-    });
-    // Poll every 30 seconds for now-playing info updates
-    setInterval(fetchNowPlayingInfo, 30000);
-  </script>
+  fetchNowPlaying();
+  setInterval(fetchNowPlaying, 30000);
+</script>
 </body>
 </html>
 
