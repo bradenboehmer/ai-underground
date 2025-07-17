@@ -44,6 +44,21 @@
       border-radius: 12px;
       box-shadow: 0 0 20px rgba(0, 255, 102, 0.5);
     }
+    #history {
+      margin-top: 40px;
+    }
+    #history h2 {
+      color: #00ff66;
+      margin-bottom: 10px;
+    }
+    #history ul {
+      list-style: none;
+      padding: 0;
+    }
+    #history li {
+      padding: 6px;
+      border-bottom: 1px solid #333;
+    }
     .footer {
       margin-top: 60px;
       color: #666;
@@ -72,11 +87,19 @@
     </div>
   </div>
 
+  <div id="history">
+    <h2>🔁 Recently Played</h2>
+    <ul id="trackhistory">
+      <li>Loading...</li>
+    </ul>
+  </div>
+
   <div class="footer">Powered by Citrus3 & Braden Boehmer • Auto-updating every 30 seconds</div>
 
   <script>
     const radioPlayer = document.getElementById('radioPlayer');
     const volumeSlider = document.getElementById('volumeSlider');
+    const historyList = document.getElementById('trackhistory');
 
     volumeSlider.addEventListener('input', () => {
       radioPlayer.volume = volumeSlider.value;
@@ -88,6 +111,15 @@
         const data = await res.json();
         document.getElementById("nowplaying").innerText = `Now Playing: ${data.nowplaying}`;
         document.getElementById("coverart").src = data.coverart || "https://via.placeholder.com/300x300?text=No+Cover";
+
+        // Update track history
+        historyList.innerHTML = '';
+        data.trackhistory.slice(0, 5).forEach(track => {
+          const li = document.createElement('li');
+          li.innerText = track;
+          historyList.appendChild(li);
+        });
+
       } catch (err) {
         document.getElementById("nowplaying").innerText = "Failed to load song info.";
         console.error("Error fetching now playing info:", err);
@@ -99,3 +131,4 @@
   </script>
 </body>
 </html>
+
