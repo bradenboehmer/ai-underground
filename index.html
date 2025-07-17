@@ -6,6 +6,9 @@
   <title>AI Underground Radio</title>
   <link rel="icon" type="image/png" href="https://fast.citrus3.com:2020/covers//68769f08e778b.jpg" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-analytics.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js"></script>
   <style>
     body {
       background-color: #0f0f0f;
@@ -55,6 +58,20 @@
     .volume-container input[type=range] {
       width: 60%;
     }
+    .vote-buttons {
+      margin-top: 30px;
+    }
+    .vote-buttons button {
+      background-color: #00ff66;
+      color: #000;
+      border: none;
+      border-radius: 5px;
+      padding: 10px 20px;
+      margin: 0 10px;
+      font-size: 1rem;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(0, 255, 102, 0.4);
+    }
   </style>
 </head>
 <body>
@@ -70,26 +87,52 @@
     <div class="volume-container">
       <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1">
     </div>
+    <div class="vote-buttons">
+      <button onclick="vote('likes')">👍 Like</button>
+      <button onclick="vote('dislikes')">👎 Dislike</button>
+      <p id="voteCounts">Likes: 0 | Dislikes: 0</p>
+    </div>
   </div>
 
   <div class="footer">Powered by Citrus3 & Braden Boehmer • Auto-updating every 30 seconds</div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-analytics.js";
-
+  <script>
     const firebaseConfig = {
       apiKey: "AIzaSyDJBRufT5Wf03k6wyRbZX2LOlibnwu0-EU",
       authDomain: "ai-underground-ab1f1.firebaseapp.com",
       projectId: "ai-underground-ab1f1",
-      storageBucket: "ai-underground-ab1f1.firebasestorage.app",
+      storageBucket: "ai-underground-ab1f1.appspot.com",
       messagingSenderId: "87646235894",
       appId: "1:87646235894:web:62aaccb88b00db5f7050d7",
       measurementId: "G-J25ZPB98L8"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
+    firebase.initializeApp(firebaseConfig);
+    firebase.analytics();
+    const db = firebase.firestore();
+    const likesRef = db.collection("votes").doc("aiunderground");
+
+    likesRef.get().then((doc) => {
+      if (!doc.exists) {
+        likesRef.set({ likes: 0, dislikes: 0 });
+      } else {
+        updateVoteDisplay(doc.data());
+      }
+    });
+
+    function vote(type) {
+      const update = {};
+      update[type] = firebase.firestore.FieldValue.increment(1);
+      likesRef.update(update).then(() => {
+        likesRef.get().then((doc) => {
+          updateVoteDisplay(doc.data());
+        });
+      });
+    }
+
+    function updateVoteDisplay(data) {
+      document.getElementById("voteCounts").innerText = `Likes: ${data.likes} | Dislikes: ${data.dislikes}`;
+    }
 
     const radioPlayer = document.getElementById('radioPlayer');
     const volumeSlider = document.getElementById('volumeSlider');
