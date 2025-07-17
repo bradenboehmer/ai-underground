@@ -4,99 +4,194 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Underground Radio</title>
+  <!-- Favicon -->
   <link rel="icon" type="image/png" href="https://fast.citrus3.com:2020/covers//68769f08e778b.jpg" />
+  <!-- Google Font for Orbitron -->
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
-  <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-analytics.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js"></script>
   <style>
+    /* Base styles */
     body {
-      background-color: #0f0f0f;
+      background-color: #0b0b0b;
       color: #e0e0e0;
       font-family: 'Orbitron', sans-serif;
       text-align: center;
-      padding: 40px;
+      margin: 0;
+      padding: 20px;
     }
     h1 {
       color: #00ff66;
-      font-size: 3rem;
-      margin-bottom: 10px;
+      font-size: 2.5rem;
+      margin: 10px 0 20px;
       letter-spacing: 2px;
     }
+    /* Player container */
     .player {
-      margin-top: 20px;
       background: #1a1a1a;
-      padding: 20px;
       border-radius: 12px;
       box-shadow: 0 0 20px rgba(0, 255, 102, 0.5);
       max-width: 600px;
-      margin-left: auto;
-      margin-right: auto;
+      margin: 0 auto;
+      padding: 20px;
     }
-    audio {
-      width: 100%;
+    /* Now Playing text */
+    #nowPlayingText {
+      font-size: 1.3rem;
       margin-top: 15px;
     }
-    #nowplaying {
-      font-size: 1.5rem;
-      margin-top: 40px;
+    /* Song title and artist (if separated) */
+    #trackTitle {
+      font-weight: bold;
     }
-    #coverart {
-      margin-top: 20px;
-      max-width: 300px;
-      border-radius: 12px;
-      box-shadow: 0 0 20px rgba(0, 255, 102, 0.5);
+    /* Cover Art image */
+    #coverArt {
+      width: 100%;
+      max-width: 100%;  /* image will scale with container, not exceed its natural size */
+      height: auto;
+      border-radius: 10px;
+      margin: 0 auto;
+      box-shadow: 0 0 15px rgba(0, 255, 102, 0.5);
     }
-    .footer {
-      margin-top: 60px;
-      color: #666;
-      font-size: 0.9rem;
-    }
-    .volume-container {
-      margin-top: 20px;
-    }
-    .volume-container input[type=range] {
-      width: 60%;
-    }
+    /* Voting buttons container */
     .vote-buttons {
-      margin-top: 30px;
+      margin-top: 20px;
+      display: flex;
+      justify-content: center;
+      gap: 40px;
     }
     .vote-buttons button {
-      background-color: #00ff66;
-      color: #000;
+      background: none;
       border: none;
-      border-radius: 5px;
-      padding: 10px 20px;
-      margin: 0 10px;
-      font-size: 1rem;
+      color: #cccccc;
+      font-size: 1.5rem;
       cursor: pointer;
-      box-shadow: 0 0 10px rgba(0, 255, 102, 0.4);
+      padding: 10px 15px;
+      /* Increase hit area without visual clutter */
+    }
+    .vote-buttons button:focus {
+      outline: none;
+    }
+    /* Hover effects for vote buttons (if not selected/disabled) */
+    #likeBtn:hover:not(.selected):not(:disabled) {
+      color: #00ff66;
+    }
+    #dislikeBtn:hover:not(.selected):not(:disabled) {
+      color: #ff3355;
+    }
+    /* Selected state for vote buttons */
+    #likeBtn.selected {
+      color: #00ff66;
+    }
+    #dislikeBtn.selected {
+      color: #ff3355;
+    }
+    /* Disabled state (generally after voting) */
+    .vote-buttons button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .vote-buttons button.selected:disabled {
+      opacity: 1.0;  /* keep chosen vote bright even if disabled */
+    }
+    /* Audio controls container */
+    .controls {
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    /* Custom Play/Pause button */
+    #playPauseBtn {
+      background: #00ff66;
+      border: none;
+      border-radius: 50%;
+      color: #0f0f0f;
+      font-size: 1.5rem;
+      width: 60px;
+      height: 60px;
+      cursor: pointer;
+      box-shadow: 0 0 10px #00ff66;
+    }
+    #playPauseBtn:focus {
+      outline: none;
+    }
+    /* Volume slider */
+    .volume-container {
+      margin-top: 15px;
+      width: 60%;
+      max-width: 300px;
+    }
+    #volumeSlider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 8px;
+      background: #555;  /* base track color */
+      border-radius: 4px;
+      cursor: pointer;
+      outline: none;
+      transition: background 0.3s;
+    }
+    /* Slider filled track (using dynamic inline style via JS for cross-browser) */
+    #volumeSlider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #00ff66;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 0 5px #00ff66;
+    }
+    #volumeSlider::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      background: #00ff66;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 0 5px #00ff66;
+    }
+    /* Footer text */
+    .footer {
+      margin-top: 30px;
+      font-size: 0.8rem;
+      color: #666666;
     }
   </style>
 </head>
 <body>
+
   <h1>🎧 AI Underground</h1>
 
   <div class="player">
-    <img id="coverart" src="" alt="Cover Art" />
-    <div id="nowplaying">Loading song info...</div>
-    <audio id="radioPlayer" controls>
-      <source src="https://fast.citrus3.com:2020/stream/aiunderground" type="audio/mpeg">
-      Your browser does not support the audio element.
-    </audio>
-    <div class="volume-container">
-      <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1">
-    </div>
+    <img id="coverArt" src="https://via.placeholder.com/300x300?text=No+Cover" alt="Cover Art">
+    <div id="nowPlayingText">Loading song info...</div>
+
+    <!-- Voting buttons -->
     <div class="vote-buttons">
-      <button onclick="vote('likes')">👍 Like</button>
-      <button onclick="vote('dislikes')">👎 Dislike</button>
-      <p id="voteCounts">Likes: 0 | Dislikes: 0</p>
+      <button id="likeBtn" title="Like this track">👍 <span id="likeCount">0</span></button>
+      <button id="dislikeBtn" title="Dislike this track">👎 <span id="dislikeCount">0</span></button>
+    </div>
+
+    <!-- Audio controls -->
+    <div class="controls">
+      <button id="playPauseBtn" title="Play/Pause">▶️</button>
+      <div class="volume-container">
+        <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1">
+      </div>
     </div>
   </div>
 
   <div class="footer">Powered by Citrus3 & Braden Boehmer • Auto-updating every 30 seconds</div>
 
-  <script>
+  <!-- Firebase and App Script -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-analytics.js";
+    import { getFirestore, doc, onSnapshot, setDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+
+    // Firebase configuration (public keys and identifiers)
     const firebaseConfig = {
       apiKey: "AIzaSyDJBRufT5Wf03k6wyRbZX2LOlibnwu0-EU",
       authDomain: "ai-underground-ab1f1.firebaseapp.com",
@@ -106,55 +201,193 @@
       appId: "1:87646235894:web:62aaccb88b00db5f7050d7",
       measurementId: "G-J25ZPB98L8"
     };
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const db = getFirestore(app);
 
-    firebase.initializeApp(firebaseConfig);
-    firebase.analytics();
-    const db = firebase.firestore();
-    const likesRef = db.collection("votes").doc("aiunderground");
+    // Get references to DOM elements
+    const coverArtImg = document.getElementById('coverArt');
+    const nowPlayingText = document.getElementById('nowPlayingText');
+    const likeBtn = document.getElementById('likeBtn');
+    const dislikeBtn = document.getElementById('dislikeBtn');
+    const likeCountSpan = document.getElementById('likeCount');
+    const dislikeCountSpan = document.getElementById('dislikeCount');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const volumeSlider = document.getElementById('volumeSlider');
 
-    likesRef.get().then((doc) => {
-      if (!doc.exists) {
-        likesRef.set({ likes: 0, dislikes: 0 });
-      } else {
-        updateVoteDisplay(doc.data());
-      }
+    // Create audio element (without default controls) for the radio stream
+    const audio = new Audio("https://fast.citrus3.com:2020/stream/aiunderground");
+    audio.preload = 'none';  // preload can be none since it's live stream
+    audio.volume = volumeSlider.value;
+
+    // Update slider track background to show volume level (for WebKit browsers)
+    function updateVolumeSliderBg(value) {
+      const percentage = value * 100;
+      // Green to the left, gray to the right
+      volumeSlider.style.background = `linear-gradient(to right, #00ff66 ${percentage}%, #555 ${percentage}%)`;
+    }
+    // Initialize the slider background on page load
+    updateVolumeSliderBg(volumeSlider.value);
+
+    volumeSlider.addEventListener('input', () => {
+      audio.volume = volumeSlider.value;
+      updateVolumeSliderBg(volumeSlider.value);
     });
 
-    function vote(type) {
-      const update = {};
-      update[type] = firebase.firestore.FieldValue.increment(1);
-      likesRef.update(update).then(() => {
-        likesRef.get().then((doc) => {
-          updateVoteDisplay(doc.data());
-        });
+    // Play/Pause button functionality
+    let isPlaying = false;
+    playPauseBtn.addEventListener('click', () => {
+      if (!isPlaying) {
+        audio.play().catch(err => console.error("Audio play error:", err));
+      } else {
+        audio.pause();
+      }
+      // The state change (play or pause) will be handled in event listeners below
+    });
+    // Sync play/pause button icon with audio state
+    audio.addEventListener('play', () => {
+      isPlaying = true;
+      playPauseBtn.textContent = "⏸";  // pause icon
+    });
+    audio.addEventListener('pause', () => {
+      isPlaying = false;
+      playPauseBtn.textContent = "▶️";  // play icon
+    });
+    // In case the stream stops (ended event), reset state
+    audio.addEventListener('ended', () => {
+      isPlaying = false;
+      playPauseBtn.textContent = "▶️";
+    });
+
+    // Function to fetch now playing info from Citrus3 JSON endpoint
+    let currentTrack = "";  // store current track title to detect changes
+    async function fetchNowPlayingInfo() {
+      try {
+        const res = await fetch("https://fast.citrus3.com:2020/json/stream/aiunderground");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const trackString = data.nowplaying || "Unknown Track";
+        const coverUrl = data.coverart || "https://via.placeholder.com/300x300?text=No+Cover";
+
+        if (trackString !== currentTrack) {
+          // Track changed
+          currentTrack = trackString;
+          // Update Now Playing text (with track info)
+          nowPlayingText.innerText = "Now Playing: " + trackString;
+          // Update cover art image (with a fade effect via CSS if already loaded)
+          coverArtImg.style.opacity = '0';
+          coverArtImg.src = coverUrl;
+          // Fade-in new cover art once loaded
+          coverArtImg.onload = () => { coverArtImg.style.opacity = '1'; };
+
+          // Handle voting system for the new track
+          setupVotingForTrack(currentTrack);
+        }
+      } catch (err) {
+        console.error("Error fetching now playing info:", err);
+        // Do not change the displayed song info on fetch error, just keep trying
+      }
+    }
+
+    // Voting system: subscribe to Firestore doc for current track and handle user votes
+    let unsubscribeVotes = null;  // to keep track of Firestore listener
+    function setupVotingForTrack(trackName) {
+      // Clean up previous listener if any
+      if (unsubscribeVotes) {
+        unsubscribeVotes();
+        unsubscribeVotes = null;
+      }
+      // Reset UI counts to 0 (until data arrives) and enable buttons
+      likeCountSpan.innerText = "0";
+      dislikeCountSpan.innerText = "0";
+      likeBtn.disabled = false;
+      dislikeBtn.disabled = false;
+      likeBtn.classList.remove('selected');
+      dislikeBtn.classList.remove('selected');
+
+      // Check localStorage if this client already voted on this track
+      const voteKey = "vote_" + encodeURIComponent(trackName);
+      const previousVote = localStorage.getItem(voteKey);
+      if (previousVote) {
+        // User has voted before on this track
+        if (previousVote === "like") {
+          likeBtn.classList.add('selected');
+        } else if (previousVote === "dislike") {
+          dislikeBtn.classList.add('selected');
+        }
+        // Disable both buttons (prevent voting again)
+        likeBtn.disabled = true;
+        dislikeBtn.disabled = true;
+      }
+
+      // Reference to Firestore document for this track
+      const trackDocRef = doc(db, "votes", trackName);
+      // Listen for live updates to this track's vote counts
+      unsubscribeVotes = onSnapshot(trackDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const likes = data.likes || 0;
+          const dislikes = data.dislikes || 0;
+          likeCountSpan.innerText = likes;
+          dislikeCountSpan.innerText = dislikes;
+        } else {
+          // No document yet, show 0/0
+          likeCountSpan.innerText = "0";
+          dislikeCountSpan.innerText = "0";
+        }
       });
     }
 
-    function updateVoteDisplay(data) {
-      document.getElementById("voteCounts").innerText = `Likes: ${data.likes} | Dislikes: ${data.dislikes}`;
-    }
-
-    const radioPlayer = document.getElementById('radioPlayer');
-    const volumeSlider = document.getElementById('volumeSlider');
-
-    volumeSlider.addEventListener('input', () => {
-      radioPlayer.volume = volumeSlider.value;
+    // Attach event handlers for like and dislike buttons
+    likeBtn.addEventListener('click', async () => {
+      if (!currentTrack) return;
+      const voteKey = "vote_" + encodeURIComponent(currentTrack);
+      if (localStorage.getItem(voteKey)) {
+        return;  // already voted (shouldn't happen as button would be disabled)
+      }
+      try {
+        const trackDocRef = doc(db, "votes", currentTrack);
+        // Attempt to update likes count atomically
+        await updateDoc(trackDocRef, { likes: increment(1), dislikes: increment(0) });
+      } catch (err) {
+        // If update fails (e.g., doc didn't exist), create the doc with initial counts
+        const trackDocRef = doc(db, "votes", currentTrack);
+        await setDoc(trackDocRef, { likes: 1, dislikes: 0 }, { merge: true });
+      }
+      // Record this vote locally and update UI immediately
+      localStorage.setItem(voteKey, "like");
+      likeBtn.classList.add('selected');
+      likeBtn.disabled = true;
+      dislikeBtn.disabled = true;
     });
 
-    async function updateNowPlaying() {
-      try {
-        const res = await fetch("https://fast.citrus3.com:2020/json/stream/aiunderground");
-        const data = await res.json();
-        document.getElementById("nowplaying").innerText = `Now Playing: ${data.nowplaying}`;
-        document.getElementById("coverart").src = data.coverart || "https://via.placeholder.com/300x300?text=No+Cover";
-      } catch (err) {
-        document.getElementById("nowplaying").innerText = "Failed to load song info.";
-        console.error("Error fetching now playing info:", err);
+    dislikeBtn.addEventListener('click', async () => {
+      if (!currentTrack) return;
+      const voteKey = "vote_" + encodeURIComponent(currentTrack);
+      if (localStorage.getItem(voteKey)) {
+        return;
       }
-    }
+      try {
+        const trackDocRef = doc(db, "votes", currentTrack);
+        await updateDoc(trackDocRef, { dislikes: increment(1), likes: increment(0) });
+      } catch (err) {
+        const trackDocRef = doc(db, "votes", currentTrack);
+        await setDoc(trackDocRef, { likes: 0, dislikes: 1 }, { merge: true });
+      }
+      localStorage.setItem(voteKey, "dislike");
+      dislikeBtn.classList.add('selected');
+      likeBtn.disabled = true;
+      dislikeBtn.disabled = true;
+    });
 
-    updateNowPlaying();
-    setInterval(updateNowPlaying, 30000);
+    // Initial load: fetch current song and setup voting, then schedule periodic updates
+    fetchNowPlayingInfo().then(() => {
+      // Start playing automatically if user has interacted (some browsers require a user gesture to start audio)
+      // The play button is provided for manual start if needed.
+    });
+    // Poll every 30 seconds for now-playing info updates
+    setInterval(fetchNowPlayingInfo, 30000);
   </script>
 </body>
 </html>
